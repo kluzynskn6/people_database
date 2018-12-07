@@ -4,3 +4,10 @@ version = "0.1.0"
 authors = ["Tim <timothyhollabaugh@gmail.com>"]
 
 [dependencies]
+people-lib = {path = "../people-lib"}
+database-lib = {path = "../../database_lib"}
+rouille = "2.2.0"
+serde = "1.0.80"
+serde_json = "1.0.33"
+serde_derive = "1.0.80"
+rpassword = "2.1.0"

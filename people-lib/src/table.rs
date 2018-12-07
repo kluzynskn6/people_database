@@ -1,3 +1,4 @@
+extern crate database_lib as dbl;
 // Table operations
 // create
 //  Take user without id, put into table, new id gets generated
@@ -8,22 +9,6 @@
 // delete
 //  Take id and remove from database
 //
-
-/**
- *
- * Represents a single table in a database
- *
- * At its core, a table simply maps a key to a value
- * Presumably, this uses an underlying database of some sort.
- *
- * We should probably also have a JoinTable type
- * There may also be a futures interface for async
- *
- */
-
-pub trait Table<V> {
-    fn lookup(&self, key: K) -> V;
-}
 
 /**
  *
@@ -49,7 +34,7 @@ pub trait JoinTable {
  * It does not actually store anything anywhere
  */
 
-pub struct TestTable<V> {
+pub struct TestTable {
 
 }
 
