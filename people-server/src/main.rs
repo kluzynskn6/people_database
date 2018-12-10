@@ -44,35 +44,38 @@ struct RemoveJson {
 
 
 fn main() {
-	//Temporary code to make it compile. Replace later
-	println!("enter username: ");
-	let mut user = String::new();
-	io::stdin().read_line(&mut user).expect("Failed to read line");
-	user = user.trim().to_string();
-	println!("{}'s password: ",user);
-	let pass = rpassword::read_password().unwrap().trim().to_string();
-	let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
-	
-	let user_table: my_types::MysqlTable<user::User>= my_types::MysqlTable {
-		tb_name: "User".to_string(),
-		db_name: "dbTest".to_string(),
-		key_name: "userID".to_string(),
-		pool:pool, 
-		phantom: PhantomData,
-	};	
-	//End of temporary code
     rouille::start_server("localhost:8000", move |request| {
-        handler(request, &user_table)
+        handler(request)
     });
 }
 
-fn handler(request: &Request, my_table: &my_types::MysqlTable<user::User>) -> Response {
+fn handler(request: &Request) -> Response {
+	//Temporary code to make it compile. Replace later
+		println!("enter username: ");
+		let mut user = String::new();
+		io::stdin().read_line(&mut user).expect("Failed to read line");
+		user = user.trim().to_string();
+		println!("{}'s password: ",user);
+		let pass = rpassword::read_password().unwrap().trim().to_string();
+		let pool = my_types::open_mysql(user,pass).unwrap();//Open mySQL
+		
+		let mut my_table: my_types::MysqlTable<user::User>= my_types::MysqlTable {
+			tb_name: "User".to_string(),
+			db_name: "dbTest".to_string(),
+			key_name: "userID".to_string(),
+			pool:pool, 
+			phantom: PhantomData,
+		};	
+	//End of temporary code
     router!(request,
             (POST) ["/api/v1/users/update"] => {
 				//Update existing user
 				//Needs: JSON with key and user data
 				//Returns: Success or Fail as plain text
-                let buf = update_user(my_table, request);
+				
+				//Once I figure out how to borrow mutably from within a function within a enclosure within a function
+				//Then I can change this back to mutable to make other tables work again
+                let buf = update_user(&my_table, request);
 				match &buf{
 					Ok(_) => Response::text("Successfully updated user"),
 					Err(_) => Response::text("Failed to update user")
@@ -84,27 +87,34 @@ fn handler(request: &Request, my_table: &my_types::MysqlTable<user::User>) -> Re
 				//Returns: JSON file with all of the user data
 				
 				//Currently can only return one user until the query builder is created
-                let buf = get_user(my_table, request);
+                let buf = get_user(&my_table, request);
 				match &buf{
 					Ok(_) => Response::json(&buf.unwrap()),//unwraps after checking it's okay
 					Err(_) => Response::text("Failed to get user")
 				}					
             },
-            (GET) ["/api/v1/users/create"] => {
+            (PUT) ["/api/v1/users"] => {
 				//Creates a new user in the database
 				//Needs: JSON with user data
 				//Returns: JSON with the key for that user
-                let buf = create_user(my_table, request);
+                let buf = create_user(&mut my_table, request);
 				match &buf{
 					Ok(_) => Response::json(&buf.unwrap()),//unwraps after checking it's okay
 					Err(_) => Response::text("Failed to create user from given data")
 				}	
             },
-            (GET) ["/api/v1/users/delete"] => {
+            (DELETE) ["/api/v1/users"] => {
 				//Delete existing user from the database
 				//Needs: JSON with key
 				//Returns: Success or Fail as plain text
-                Response::text("501: Not implemented").with_status_code(501)
+				
+				//Having problems with borrowing mutably (becuase remove changes thigs, it needs to be mutable
+				//The mysql version doesn't actually need to be mutable, but other tables do
+				let buf = remove_user(&mut my_table, request);
+				match &buf{
+					Ok(_) => Response::text("Successfully removed user"),
+					Err(_) => Response::text("Failed to remove user")
+				}
             },
             _ => {
                 Response::text("404: Not found").with_status_code(404)
@@ -162,7 +172,7 @@ fn get_user(user_table: &my_types::MysqlTable<user::User>, req: &Request) -> Res
 			None => Err("No user assoiated with the provided key".to_string()),
 }}}
 
-fn create_user(user_table: &my_types::MysqlTable<user::User>, req: &Request) -> Result<my_types::MysqlTableKey,String>{
+fn create_user(user_table: &mut my_types::MysqlTable<user::User>, req: &Request) -> Result<my_types::MysqlTableKey,String>{
 	//Get data from the JSON in the request
 	let data_test: Result<InsertJson, rouille::input::json::JsonError> = rouille::input::json_input(&req);
 	let data : InsertJson;
@@ -183,10 +193,22 @@ fn create_user(user_table: &my_types::MysqlTable<user::User>, req: &Request) -> 
 		false => Err("Could not insert user with the given data".to_string())
 	}	
 }
-
-
-
-
-
-
+fn remove_user(user_table: &mut my_types::MysqlTable<user::User>, req: &Request) -> Result<(),String>{
+	let data_test: Result<RemoveJson, rouille::input::json::JsonError> = rouille::input::json_input(&req);
+	let data : RemoveJson;
+	match &data_test{
+			Ok(_) =>data = data_test.unwrap(),
+			Err(_) => return Err("Could not parse JSON".to_string()),
+	}
+	let key = my_types::MysqlTableKey{
+		id: data.key,
+		valid : true,
+	};
+	
+	let buf = user_table.remove(key);
+	match &buf {
+		Ok(_) => Ok(()),
+		Err(string) => Err(string.to_string()),
+	}	
+}
 
