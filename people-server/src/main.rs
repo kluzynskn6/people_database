@@ -72,9 +72,6 @@ fn handler(request: &Request) -> Response {
 				//Update existing user
 				//Needs: JSON with key and user data
 				//Returns: Success or Fail as plain text
-				
-				//Once I figure out how to borrow mutably from within a function within a enclosure within a function
-				//Then I can change this back to mutable to make other tables work again
                 let buf = update_user(&my_table, request);
 				match &buf{
 					Ok(_) => Response::text("Successfully updated user"),
@@ -107,9 +104,6 @@ fn handler(request: &Request) -> Response {
 				//Delete existing user from the database
 				//Needs: JSON with key
 				//Returns: Success or Fail as plain text
-				
-				//Having problems with borrowing mutably (becuase remove changes thigs, it needs to be mutable
-				//The mysql version doesn't actually need to be mutable, but other tables do
 				let buf = remove_user(&mut my_table, request);
 				match &buf{
 					Ok(_) => Response::text("Successfully removed user"),
